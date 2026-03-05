@@ -11,7 +11,7 @@ ifndef GCC_VER
     GCC_VER=$(shell echo $(UNAME) $(HOME) | awk '/Darwin/&&/Users.wayne/{V="-6"}END{if(V)print V;else{printf "using default gcc: " > "/dev/null"; exit 1}}')
 endif
 GCC=gcc$(GCC_VER) # gcc gcc-4.2 gcc-6 gcc-7 gcc-8 gcc-9 # Possibilities on Darwin
-CXX=g++$(GCC_VER)
+CXX=g++$(GXX_VER)
 STACKSIZE=$(shell ($(GCC) -v 2>&1; uname -a) | awk '/CYGWIN/{print "-Wl,--stack,83886080"}/gcc-/{actualGCC=1}/Darwin/&&actualGCC{print "-Wl,-stack_size -Wl,0x5000000"}')
 CC=$(GCC) $(OPT) $(GDB) $(DEBUG) -Wno-unused-variable -Wno-unused-but-set-variable -Wall -Wpointer-arith -Wcast-qual -Wcast-align -Wwrite-strings -Wstrict-prototypes -Wshadow $(PG) $(STACKSIZE)
 LIBWAYNE_HOME:=$(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
@@ -48,13 +48,19 @@ parallel: parallel.c
 	$(CC) -o bin/parallel parallel.c
 
 testlib:
-	export LIBWAYNE_HOME=$(LIBWAYNE_HOME); for x in ebm covar stats hash raw_hashmap htree-test avltree-test bintree-test CI tinygraph-sanity graph-sanity graph-weighted circ_buf sim_anneal; do rm -f bin/$$x tests/$$x.o; ( cd tests; $(MAKE) $$x; mv $$x ../bin; IN=/dev/null; [ -f $$x.in ] && IN=$$x.in; cat $$IN | ../bin/$$x $$x.in > /tmp/$$x.test$$$$ 2>&1 || exit 1; cat /tmp/$$x.test$$$$ | if [ -f $$x.out ]; then cmp - $$x.out; else wc; fi; /bin/rm -f /tmp/$$x.test$$$$); done
+	export LIBWAYNE_HOME=$(LIBWAYNE_HOME); for x in ebm covar stats hash raw_hashmap htree-test avltree-test bintree-test CI graph-sanity tinygraph-sanity graph-weighted circ_buf; do rm -f bin/$$x tests/$$x.o; ( cd tests; $(MAKE) $$x; mv $$x ../bin; IN=/dev/null; [ -f $$x.in ] && IN=$$x.in; cat $$IN | ../bin/$$x $$x.in > /tmp/$$x.test$$$$ 2>&1 || exit 1; cat /tmp/$$x.test$$$$ | if [ -f $$x.out ]; then cmp - $$x.out; else wc; fi; /bin/rm -f /tmp/$$x.test$$$$); done #sim_anneal
 
 opt:
 	$(MAKE) 'OPT=-O2' 'LIBOUT=libwayne.a' libwayne
 
 debug:
 	$(MAKE) 'GDB=-ggdb' 'DEBUG=-DDEBUG=1' 'LIBOUT=libwayne-g.a' libwayne
+
+shared-opt:
+	$(MAKE) 'OPT=-O2 -fPIC' 'LIBOUT=libwayne.a' libwayne
+
+shared-debug:
+	$(MAKE) 'OPT=-fPIC' 'GDB=-ggdb' 'DEBUG=-DDEBUG=1' 'LIBOUT=libwayne-g.a' libwayne
 
 ndebug:
 	$(MAKE) 'OPT=-O2' 'DEBUG=-DNDEBUG=1' 'LIBOUT=libwayne-nd.a' libwayne

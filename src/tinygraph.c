@@ -1,3 +1,5 @@
+// This software is part of github.com/waynebhayes/libwayne, and is Copyright(C) Wayne B. Hayes 2025, under the GNU LGPL 3.0
+// (GNU Lesser General Public License, version 3, 2007), a copy of which is contained at the top of the repo.
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -10,23 +12,7 @@ extern "C" {
 **
 *************************************************************************/
 
-TINY_GRAPH *TinyGraphAllocD(unsigned int n, Boolean selfLoops, Boolean directed)
-{
-    static Boolean startup = 1;
-    TINY_GRAPH *G = Calloc(1, sizeof(TINY_GRAPH));
-    // Note: an assert(n<=MAX_TSET) isn't enough, because it can be turned off with NDEBUG. We need to be CERTAIN.
-    if(n > MAX_TSET) Fatal("TinyGraphAllocD can only handle up to %d nodes, not %d", MAX_TSET, n);
-    if(startup)
-    {
-	startup = 0;
-	SetStartup();
-    }
-    G->n = n;
-    G->directed = directed;
-    G->selfLoops = selfLoops;
-    return G;
-}
-TINY_GRAPH *TinyGraphAlloc(unsigned int n)
+TINY_GRAPH *TinyGraphAlloc(unsigned int n, Boolean selfLoops, Boolean directed)
 {
     static Boolean startup = 1;
     TINY_GRAPH *G = Calloc(1, sizeof(TINY_GRAPH));
@@ -38,14 +24,18 @@ TINY_GRAPH *TinyGraphAlloc(unsigned int n)
 	SetStartup();
     }
     G->n = n;
-    G->directed = 0;
-    G->selfLoops = 0;
+    G->directed = directed;
+    G->selfLoops = selfLoops;
+    return G;
+}
+TINY_GRAPH *TinyGraphSelfAlloc(unsigned int n)
+{
+    TINY_GRAPH *G = TinyGraphAlloc(n,true,false);
     return G;
 }
 TINY_GRAPH *TinyGraphConnect(TINY_GRAPH *G, int i, int j)
 {
-    if(TinyGraphAreConnected(G, i, j))
-	return G;
+    if(TinyGraphAreConnected(G, i, j)) return G;
     if(i==j) assert(G->selfLoops);
     TSetAdd(G->A[i], j);
     ++G->degree[i];
@@ -126,7 +116,7 @@ TINY_GRAPH *TinyGraphReadAdjMatrix(FILE *fp, Boolean directed)
     int i,j,n=-1;
     TINY_GRAPH *G;
     assert(1==fscanf(fp, "%d", &n) && n>=0);
-    G = TinyGraphAllocD(n,0,directed);
+    G = TinyGraphAlloc(n,0,directed);
     for(i=0; i<n; i++) for(j=0; j<n; j++)
     {
 	int connected;
@@ -143,7 +133,7 @@ TINY_GRAPH *TinyGraphComplement(TINY_GRAPH *Gbar, TINY_GRAPH *G)
 {
     int i,j;
     assert(Gbar != G); // can't handle complementing a graph to itself
-    if(!Gbar) Gbar = TinyGraphAllocD(G->n,G->selfLoops,G->directed);
+    if(!Gbar) Gbar = TinyGraphAlloc(G->n,G->selfLoops,G->directed);
     for(i=0; i < G->n; i++) for(j=0;j<G->n;j++){
 	if(i==j&&!G->selfLoops) continue;
 	if(TinyGraphAreConnected(G,i,j)) TinyGraphDisconnect(Gbar,i,j);
@@ -162,7 +152,8 @@ TINY_GRAPH *TinyGraphUnion(TINY_GRAPH *dest, TINY_GRAPH *G1, TINY_GRAPH *G2)
     if(dest)
 	dest->n = G1->n;
     else
-	dest = TinyGraphAllocD(G1->n,G1->selfLoops||G2->selfLoops,G1->directed);
+	dest = TinyGraphAlloc(G1->n,G1->selfLoops||G2->selfLoops,G1->directed||G2->directed);
+        
 
     for(i=0; i < G1->n; i++)
     {
@@ -181,7 +172,7 @@ TINY_GRAPH *TinyGraphCopy(TINY_GRAPH *dest, TINY_GRAPH *G1)
     if(dest)
 	dest->n = G1->n;
     else
-	dest = TinyGraphAllocD(G1->n,G1->selfLoops,G1->directed);
+	dest = TinyGraphAlloc(G1->n,G1->selfLoops,G1->directed);
 
     for(i=0; i < G1->n; i++)
     {
@@ -206,6 +197,11 @@ int TinyGraphNumEdges(TINY_GRAPH *G)
     }
     assert(numSelf==0||G->selfLoops);
     return (numSelf*(1-G->directed)+total)/(2-G->directed);
+}
+
+unsigned TinyGraphNumReachableNodes(TINY_GRAPH *g, int seed) {
+    int nodeArray[MAX_TSET], distArray[MAX_TSET];
+    return TinyGraphBFS(g, seed, MAX_TSET, nodeArray, distArray);
 }
 
 int TinyGraphBFS(TINY_GRAPH *G, int root, int distance, int *nodeArray, int *distArray)
@@ -292,7 +288,6 @@ void TinyGraphDFSConnectedHelper(TINY_GRAPH *G, int seed, TSET* visited) {
 
 TINY_GRAPH *TinyGraphInduced(TINY_GRAPH *Gv, TINY_GRAPH *G, TSET V)
 {
-    assert(!G->directed&&!Gv->directed);
     unsigned int array[MAX_TSET], nV = TSetToArray(array, V), i, j;
     static TINY_GRAPH GGv;
     if(Gv)
@@ -300,19 +295,21 @@ TINY_GRAPH *TinyGraphInduced(TINY_GRAPH *Gv, TINY_GRAPH *G, TSET V)
 	if(Gv == G) /* be careful, destination is same as source */
 	    Gv = &GGv;
 	Gv->n = nV;
+    Gv->selfLoops = G->selfLoops;
+    Gv->directed = G->directed;
 	TinyGraphEdgesAllDelete(Gv);
     }
     else
-	Gv = TinyGraphAllocD(nV,0,0);
-    Gv->selfLoops = G->selfLoops;
+	Gv = TinyGraphAlloc(nV,Gv->selfLoops,Gv->directed);
 
-    for(i=0; i < nV; i++) for(j=i+1; j < nV; j++)
+    for(i=0; i < nV; i++) for(j=G->directed ? 0 : i+1; j < nV; j++){
+        if(i==j) continue;
 	if(TinyGraphAreConnected(G, array[i], array[j]))
 	    TinyGraphConnect(Gv, i, j);
+    }
     if(G->selfLoops) for(i=0; i < nV; i++)
 	if(TinyGraphAreConnected(G, array[i], array[i]))
 	    TinyGraphConnect(Gv, i, i);
-
     if(Gv == &GGv)
 	*(Gv = G) = GGv;
     return Gv;
@@ -321,7 +318,6 @@ TINY_GRAPH *TinyGraphInduced(TINY_GRAPH *Gv, TINY_GRAPH *G, TSET V)
 
 TINY_GRAPH *TinyGraphInduced_NoVertexDelete(TINY_GRAPH *Gv, TINY_GRAPH *G, TSET V)
 {
-    assert(!G->directed&&!Gv->directed);
     unsigned int array[MAX_TSET], nV = TSetToArray(array, V), i, j;
     static TINY_GRAPH GGv;
     if(Gv)
@@ -332,15 +328,17 @@ TINY_GRAPH *TinyGraphInduced_NoVertexDelete(TINY_GRAPH *Gv, TINY_GRAPH *G, TSET 
 	TinyGraphEdgesAllDelete(Gv);
     }
     else
-	Gv = TinyGraphAllocD(G->n,0,0);
+	Gv = TinyGraphAlloc(G->n,0,0);
     Gv->selfLoops = G->selfLoops;
 
-    for(i=0; i < nV; i++) for(j=i+1; j < nV; j++)
+    for(i=0; i < nV; i++) for(j=G->directed ? 0 : i+1; j < nV; j++){
+        if(i==j) continue;
 	if(TinyGraphAreConnected(G, array[i], array[j]))
 	    TinyGraphConnect(Gv, array[i], array[j]);
+    }
     if(G->selfLoops) for(i=0; i < nV; i++)
 	if(TinyGraphAreConnected(G, array[i], array[i]))
-	    TinyGraphConnect(Gv, array[i], array[i]);
+	    TinyGraphConnect(Gv, i, i);
     if(Gv == &GGv)
 	*(Gv = G) = GGv;
     return Gv;

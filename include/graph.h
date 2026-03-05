@@ -1,3 +1,5 @@
+// This software is part of github.com/waynebhayes/libwayne, and is Copyright(C) Wayne B. Hayes 2025, under the GNU LGPL 3.0
+// (GNU Lesser General Public License, version 3, 2007), a copy of which is contained at the top of the repo.
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -8,17 +10,19 @@ extern "C" {
 #include "sets.h"
 #include "combin.h"
 #include <stdio.h>
-#include "bintree.h" // to support node names
+#include "tree.h" // to support node names
 
 #define SORT_NEIGHBORS 0 // Thought this might speed things up but it appears not to.
+
+typedef double (*GraphEdgeWeightFn)(unsigned int u, unsigned int v);
 
 typedef struct _Graph {
     /* vertices numbered 0..n-1 inclusive */
     unsigned n;
     SET **A;   /* Adjacency Matrix, as a dynamically allocated array[G->n] of SETs */
     Boolean useComplement; // when true, calls to GraphAreConnected are inverted
-    Boolean sparse; // true=only neighbors and degree, no matrix; false=only matrix + degree, no neighbors, both=both
     Boolean selfAllowed; // self-loops allowed iff this is true
+    Boolean directed; // Is the graph directed?
     unsigned *degree;   /* degree of each v[i] == cardinality of A[i] == length of neighbor array */
     unsigned *maxDegree;   /* the physical number of neighbors--can be increased if necessary in GraphConnect() */
     unsigned **neighbor; /* adjacency list: possibly sorted list of neighbors, sorted if SORTED below is true. */
@@ -29,13 +33,15 @@ typedef struct _Graph {
     unsigned maxEdges, numEdges, *edgeList; /* UNSORTED list of all edges in the graph, edgeList[0,..2*numEdges] */
     // next two members are only used if called with supportNodeNames=true;
     Boolean supportNodeNames;
-    BINTREE *nameDict;	// string to int map
+    TREETYPE *nameDict;	// string to int map
     char **name;	// int to string map (inverse of the above)
+    GraphEdgeWeightFn edgeWeightFn; // optional callback supplying computed edge weights
 } GRAPH;
 
-GRAPH *GraphAlloc(unsigned n, Boolean sparse, Boolean supportNodeNames); // does NOT allow self-loops
-GRAPH *GraphSelfAlloc(unsigned n, Boolean sparse, Boolean supportNodeNames); // DOES allow self-loops
-
+// Call GraphAlloc with an existing pre-allocated GRAPH*, or NULL if you need a new one allocated.
+GRAPH *GraphAlloc(GRAPH *, unsigned n, Boolean directed, Boolean supportNodeNames, GraphEdgeWeightFn edgeWeightFn);
+GRAPH *GraphSelfAlloc(unsigned n, Boolean directed, Boolean supportNodeNames, GraphEdgeWeightFn edgeWeightFn);
+GRAPH *GraphSort(GRAPH *G);
 GRAPH *GraphMakeWeighted(GRAPH *G);
 GRAPH *GraphAllocateNeighborLists(GRAPH *G, unsigned *maxDegrees); // given known maxDegrees, pre-allocated neighbor lists (YING)
 void GraphFree(GRAPH *G);
@@ -94,18 +100,17 @@ GRAPH *GraphInduced_NoVertexDelete(GRAPH *G, SET *V);
 GRAPH *GraphInduced(GRAPH *G, SET *V);
 
 void GraphPrintAdjMatrix(FILE *fp, GRAPH *G);
-GRAPH *GraphReadAdjMatrix(FILE *fp, Boolean sparse);
+GRAPH *GraphReadAdjMatrix(GRAPH *, FILE *fp, Boolean directed);
 void GraphPrintAdjList(FILE *fp, GRAPH *G);
-GRAPH *GraphReadAdjList(FILE *fp, Boolean sparse);
+GRAPH *GraphReadAdjList(GRAPH *, FILE *fp, Boolean directed);
 
-// set weights pointer to NULL if no weights
-GRAPH *GraphFromEdgeList(unsigned numNodes, unsigned numEdges, unsigned *pairs, Boolean sparse, float *weights);
-
-GRAPH *GraphReadEdgeList(FILE *fp, Boolean sparse, Boolean supportNodeNames, Boolean weighted);
+GRAPH *GraphFromEdgeList(GRAPH *, unsigned n, unsigned m, unsigned *pairs, Boolean directed, float *weights);
+GRAPH *GraphReadEdgeList(GRAPH *, FILE *fp, Boolean directed, Boolean supportNodeNames, Boolean weighted);
 int GraphNodeName2Int(GRAPH *G, char *name);
 void GraphPrintConnections(FILE *fp, GRAPH *G);
-GRAPH *GraphReadConnections(FILE *fp, Boolean sparse);
+GRAPH *GraphReadConnections(GRAPH *, FILE *fp, Boolean directed);
 Boolean GraphAreConnected(GRAPH *G, int i, int j);
+GRAPH *GraphAddEdgeList(GRAPH *G, Boolean directed, unsigned m, unsigned *pairs, float *weights);
 
 /*
 ** The following subroutines should be used with caution, because they take

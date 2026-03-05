@@ -1,3 +1,5 @@
+// This software is part of github.com/waynebhayes/libwayne, and is Copyright(C) Wayne B. Hayes 2025, under the GNU LGPL 3.0
+// (GNU Lesser General Public License, version 3, 2007), a copy of which is contained at the top of the repo.
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -11,29 +13,7 @@ extern "C" {
 // and an array of keys with length equal to the depth you're searching.
 // Both keys and data are foints; the user is responsible for knowing what's actually stored.
 
-#ifndef HTREE_USES_AVL
-#define HTREE_USES_AVL 0 // set to 0 to use old "copy to balance" bintree -- which appears faster though uses more RAM
-#endif
-
-#if HTREE_USES_AVL
-#include "avltree.h"
-#define TREETYPE AVLTREE
-#define TreeAlloc AvlTreeAlloc
-#define TreeInsert AvlTreeInsert
-#define TreeLookup AvlTreeLookup
-#define TreeLookDel AvlTreeLookDel
-#define TreeTraverse AvlTreeTraverse
-#define TreeFree AvlTreeFree
-#else
-#include "bintree.h"
-#define TREETYPE BINTREE
-#define TreeAlloc BinTreeAlloc
-#define TreeInsert BinTreeInsert
-#define TreeLookup BinTreeLookup
-#define TreeLookDel BinTreeLookDel
-#define TreeTraverse BinTreeTraverse
-#define TreeFree BinTreeFree
-#endif
+#include "tree.h" // switches between AVL and BINTREE
 
 /*-------------------  Types  ------------------*/
 
@@ -44,7 +24,7 @@ typedef struct _hTree
     pCmpFcn cmpKey;
     pFointCopyFcn copyKey, copyInfo;
     pFointFreeFcn freeKey, freeInfo;
-    //int n; // total number of elements across all sub-trees.
+    int n; // total number of elements across all sub-trees.
 } HTREE;
 
 /*-----------   Function Prototypes  -----------*/
@@ -59,7 +39,7 @@ void HTreeInsert(HTREE *, foint keys[], foint info);
 // Otherwise, if pInfo!=NULL, populate it with new info; otherwise just return true (found).
 Boolean HTreeLookDel(HTREE *, foint keys[], foint *pInfo);
 #define HTreeLookup(h,k,p) HTreeLookDel((h),(k),(p))
-#define HTreeDelete(h,k)   HTreeLookDel((h),(k),(pInfo*)1)
+#define HTreeDelete(h,k)   HTreeLookDel((h),(k),(foint*)1)
 
 // number of elements in trees down the hierarchy along key path; returns number of sizes[] we managed to fill,
 // which should be equal to depth.

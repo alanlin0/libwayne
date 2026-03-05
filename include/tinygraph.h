@@ -1,3 +1,5 @@
+// This software is part of github.com/waynebhayes/libwayne, and is Copyright(C) Wayne B. Hayes 2025, under the GNU LGPL 3.0
+// (GNU Lesser General Public License, version 3, 2007), a copy of which is contained at the top of the repo.
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -22,8 +24,8 @@ typedef struct _tinyGraph {
     TSET A[MAX_TSET];   /* Adjacency Matrix */
 } TINY_GRAPH;
 
-TINY_GRAPH *TinyGraphAllocD(unsigned int n, Boolean selfLoops, Boolean directed);
-TINY_GRAPH *TinyGraphAlloc(unsigned int n);
+TINY_GRAPH *TinyGraphAlloc(unsigned int n, Boolean selfLoops, Boolean directed);
+TINY_GRAPH *TinyGraphSelfAlloc(unsigned int n);
 #define TinyGraphFree Free
 TINY_GRAPH *TinyGraphEdgesAllDelete(TINY_GRAPH *G);
 TINY_GRAPH *TinyGraphCopy(TINY_GRAPH *G, TINY_GRAPH *H); // G = H
@@ -46,6 +48,7 @@ int TinyGraphNumEdges(TINY_GRAPH *G); // total number of edges, just the sum of 
  * Also, worst-case runtime is O(n^2)... very bad, yes.. :-(
  */
 int TinyGraphBFS(TINY_GRAPH *G, int seed, int distance, int *nodeArray, int *distArray);
+unsigned TinyGraphNumReachableNodes(TINY_GRAPH *g, int seed);
 Boolean TinyGraphDFSConnected(TINY_GRAPH *G, int seed);
 void TinyGraphDFSConnectedHelper(TINY_GRAPH *G, int seed, TSET* visited);
 /*

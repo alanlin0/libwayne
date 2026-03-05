@@ -1,3 +1,5 @@
+// This software is part of github.com/waynebhayes/libwayne, and is Copyright(C) Wayne B. Hayes 2025, under the GNU LGPL 3.0
+// (GNU Lesser General Public License, version 3, 2007), a copy of which is contained at the top of the repo.
 #include "sim_anneal.h"
 
 SIM_ANNEAL *SimAnnealAlloc(double direction, foint initSol, pMoveFunc Move, pScoreFunc Score, pAcceptFunc Accept,
@@ -67,7 +69,6 @@ static void Iteration(SIM_ANNEAL *sa) {
     }
     //Note("Iter: score %g (%g) T %g pB %g\n", sa->currentScore, delta, sa->temperature, pBad);
     if(accept) sa->currentScore += delta;
-    Boolean didAccept = sa->Accept(accept, sa->currentSolution);
 }
 
 static double findPbad(SIM_ANNEAL *sa, double temperature) {
@@ -119,12 +120,18 @@ int SimAnnealRun(SIM_ANNEAL *sa) {
 	static int prevPctDone;
 	int pctDone = 100.0*sa->iter/sa->maxIters;
 	if(pctDone > prevPctDone) {
-	    printf("%d%% pBad %g ", pctDone, PbadMean(sa));
+	    printf("%d%% T %g pBad %g ", pctDone, sa->temperature, PbadMean(sa));
 	    if(sa->Report) sa->Report(sa->iter, sa->currentSolution);
 	    puts("");
 	    double realScore = sa->Score(true, sa->currentSolution);
 	    double error = sa->currentScore-realScore;
-	    if(error>0) Note("[incEvalError: %g vs. real %g (error %g)]", sa->currentScore, realScore, error);
+	    if(error>0) {
+		if(realScore==0) Note("[incEvalError: %g vs. real %g (error %g)]", sa->currentScore, realScore, error);
+		else {
+		    double relError = fabs(error/realScore);
+		    if(relError>1e-12) Note("[incEvalError: %g vs. real %g (error %g)]", sa->currentScore, realScore, error);
+		}
+	    }
 	    sa->currentScore=realScore;
 	    prevPctDone=pctDone;
 

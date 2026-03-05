@@ -1,3 +1,5 @@
+// This software is part of github.com/waynebhayes/libwayne, and is Copyright(C) Wayne B. Hayes 2025, under the GNU LGPL 3.0
+// (GNU Lesser General Public License, version 3, 2007), a copy of which is contained at the top of the repo.
 #include <stdio.h>
 #include "misc.h"
 #include "tinygraph.h"
@@ -11,7 +13,7 @@ int main(int argc, char *argv[])
     srand48(time(NULL));
     for(testNum=0;testNum<10000;testNum++)
     {
-	n = 3 + lrand48() % (TINY_SET_SIZE-2); // ensure G->n is at least 2
+	n = 3 + lrand48() % (TINY_SET_SIZE-2); // ensure G->n is at least 3
 	G = TinyGraphAlloc(n,(lrand48()%2==0),(lrand48()%2==0));
 	GG = TinyGraphComplement(NULL,G);
 	Complete = TinyGraphCopy(NULL,GG);
@@ -44,9 +46,10 @@ int main(int argc, char *argv[])
 	assert(U->selfLoops == G->selfLoops);
 	assert(U2->selfLoops == G->selfLoops);
 	assert(Complete->selfLoops == G->selfLoops);
-	for(i=0; i<G->n; i++)
+	for(i=0; i<G->n; i++){
 	    assert(Gbar->A[i] == U->A[i]);
 	    assert(Complete->A[i] == U2->A[i]);
+	}
     }
     printf("DONE!\nGraph for BFS (selfLoops: %d, directed: %d)\n",G->selfLoops,G->directed);
     TinyGraphPrintAdjMatrix(stderr,G);
