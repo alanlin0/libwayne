@@ -126,6 +126,7 @@ static void SetListSort(SET *s)
 */
 Boolean SetInSafe(const SET *set, SET_ELEMENT_TYPE element)
 {
+    if(element>=set->maxElem) fprintf(stderr,"SetInSafe: element %u is out of bounds for set with maxElem %u\n", element, set->maxElem);
     assert(element < set->maxElem);
     if(set->bitvec) {
 #if PARANOID_ASSERTS
